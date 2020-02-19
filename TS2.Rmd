@@ -1,0 +1,244 @@
+---
+title: "Time Series HW2"
+author: "Maotong Sun"
+date: "2/16/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Problem 2.1
+
+- Question (a)
+```{r}
+library(astsa)
+```
+
+```{r}
+## help to 'center' time
+trend <- time(jj) - 1970
+
+## make Quarter factors
+Q <- factor(cycle(jj))
+
+reg1 <- lm(log(jj) ~ 0 + trend + Q, na.action = NULL)
+summary(reg1)
+```
+
+- Question (b)
+  - The estimated average annual increase in the logged earnings per share is:
+    $\hat{\alpha_1}+\hat{\alpha_2}+\hat{\alpha_3}+\hat{\alpha_4}$
+  - From the summary table above, we can get that it equals to:
+    $1.052793 + 1.080916 + 1.151024 + 0.882266 = 4.166999$
+
+- Question (c)
+  - $\hat{\alpha_4}-\hat{\alpha_3}=−0.268758$
+  - So if the model is correct, averaged logged earnings rate decrease from the third quarter to the fourth quarter.
+  - $(0.268758/1.151024)\times100=0.233495$
+  - It decrease about 23%.
+  
+- Question (d)
+```{r}
+reg2 <- lm(log(jj) ~ trend + Q, na.action = NULL)
+summary(reg2)
+```
+Intercept term here takes away the first quarter effect, and the intercept appears in all quarters, this does not make sense since we want to study the effect of each quarter seperately.
+
+- Question (e)
+```{r}
+par(mfrow = c(1, 2))
+plot(log(jj), main = "plot of data and fitted value")
+
+## Superimpose the fitted values
+lines(fitted(reg1), col = "red")
+
+## Examine the residuals
+plot(log(jj) - fitted(reg1), main = "plot of residuals")
+```
+
+The noise seems not to follow any pattern, hence it looks quite white. Also, the fit seems pretty good.
+
+## Problem 2.2
+
+- Question (a)
+```{r}
+n = length(tempr)
+
+## Center temperature
+temp <- tempr - mean(tempr)
+temp2 <- temp^2
+
+trend <- time(cmort)
+
+fit_1 <- lm(cmort ~ trend + temp + temp2 + part, na.action = NULL)
+fit_2 <- lm(cmort[5:n] ~ trend[5:n] + temp[5:n] + temp2[5:n] + part[5:n]
+            + part[1:(n-4)], na.action = NULL)
+summary(fit_2)
+```
+The above summary table shows that all the predictors are statistically significant.
+
+- Question (b)
+```{r}
+a <- cbind(Mt = cmort[5:n], Tt = temp[5:n], Pt = part[5:n], Pt_4 = part[1:(n-4)])
+
+## Scatterplot
+pairs(a)
+```
+
+```{r}
+## Calculate the pairwise correlations between the series
+cor(a)
+```
+The correlation between $M_t$ and $P_{t-4}$ is stronger than that berween $M_t$ and $P_t$, which illsutrates that $P_{t-4}$ truly is a significant variable and should definitely be included in the regression.
+
+## Problem 2.3
+
+- Question (a)
+```{r}
+set.seed(123)
+n <- 100
+delta <- 0.01
+time <- 1:n
+
+## Generate the white noise
+par(mfrow = c(2, 2), mar = c(2.5, 2.5, 0, 0)+.5, mgp = c(1.6, .6, 0))
+for (k in 1:4) {
+  w <- rnorm(n, 0, 1)
+  x <- c()
+  for (t in 1:n) {
+    x[t] <- delta*t + sum(w[1:t])
+  }
+  ## True mean function
+  mu <- delta * time
+  regx <- lm(x ~ 0 + time)
+  plot(time, x, type = "l", main = "random walk")
+  lines(time, fitted(regx), col = "red")
+  lines(time, mu, col = "blue")
+}
+
+```
+
+- Question (b)
+```{r}
+set.seed(123)
+n <- 100
+time <- 1:n
+
+## Generate the white noise
+par(mfrow = c(2, 2), mar = c(2.5, 2.5, 0, 0)+.5, mgp = c(1.6, .6, 0))
+for (k in 1:4) {
+  w <- rnorm(n, 0, 1)
+  y <- 0.01*time + w
+  ## True mean function
+  mu <- 0.01 * time
+  regy <- lm(y ~ 0 + time)
+  plot(time, y, type = "l", main = "no random walk")
+  lines(time, fitted(regy), col = "red")
+  lines(time, mu, col = "blue")
+}
+```
+
+- Question (c)
+
+The distance between the fit and the true mean is significantly smaller in Question (b), because the errors in $y_t$ are independent which is one of the main assumptions of the linear regression where as in $x_t$ the errors are correlated because of the accumulation of the white noises.
+
+## Problem 2.8
+
+- Question (a)
+```{r}
+xt <- varve
+
+## variance over the forst half
+var_1 <- var(xt[1:(length(xt)/2)])
+
+## variance over the second half
+var_2 <- var(xt[(length(xt)/2):length(xt)])
+
+data.frame(FirstHalf = var_1, SecondHalf = var_2)
+```
+
+We can see that the sample variance of the second half is over 4 times the sample variance of the first half. So $x_t$ exhibits heteroscedasticity.
+
+```{r}
+yt <- log(xt)
+
+vary_1 <- var(yt[1:(length(yt)/2)])
+vary_2 <- var(yt[(length(yt)/2):length(yt)])
+
+data.frame(FirstHalf = vary_1, SecondHalf = vary_2)
+```
+
+According to the dataframe above, we can conclude that the spread of the variance has gone down tremendously and it has mostly stabilized.
+
+```{r}
+par(mfrow = c(1, 2))
+hist(varve, main = "raw data")
+hist(log(varve), main = "log-transformed data")
+```
+
+The figures above clearly show that the approximation to normality is improved by transforming the data.
+
+- Question (b)
+
+```{r}
+plot(yt, main = "log-transformed data")
+```
+From the figure above, we can see a similar upward trend from the Time 200 to 400.
+
+- Question (c)
+```{r}
+## Sample ACF of yt
+acf(yt, lag.max = 120, main = "log-transformed data")
+```
+The ACF goes to 0 in about 120 years, which indicates that the warves potentially had significant differences in composition each 120 years.
+
+- Question (d)
+```{r}
+ut <- diff(yt, 1)
+par(mfrow = c(2, 1))
+
+## Time plot
+plot(ut)
+
+## Sample ACF of ut
+acf(ut, lag.max = 120)
+```
+
+Based on the time plot, we can say that the mean of this time series stays roughly constant throughout. The ACF plot also has a much smaller spread, going to roughly 0 after lag 1. Therefore we can say that differencing the logged time series produces a roughly stationary series.
+
+In statistical sense, $u_t$ can be viewed as the smoothing:
+
+\begin{align}
+    u_t &= \nabla y_t\\
+        &= y_t - y_{t-1}\\
+        &= log(x_t) - log(x_{t-1})\\
+        &= log(\frac{x_t}{x_{t-1}})\\
+        &= log(1 + \frac{x_t - x_{t-1}}{x_{t-1}})\\
+        &\approx \frac{x_t - x_{t-1}}{x_{t-1}}
+
+
+\end{align}
+
+which can be interpreted as the marginal change in the thickness varves.
+
+## Problem 2.11
+
+- Unsmoothed Time Series
+```{r}
+plot(globtemp, main = "Unsmoothed Time Series")
+```
+
+- MA Smoothing
+```{r}
+wgts <- c(.5, rep(1, 11), .5)/12
+smooth_MA <- stats::filter(globtemp, sides = 2, filter = wgts)
+plot(smooth_MA, main = "Moving Average Smoothing")
+```
+
+- Kernel Smoothing
+```{r}
+smooth_KL <- ksmooth(time(globtemp), globtemp, "normal", bandwidth = 10)
+plot(smooth_KL, main = "Kernel Smoothing", type = "l")
+```
